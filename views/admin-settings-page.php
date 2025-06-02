@@ -1,0 +1,92 @@
+<?php
+if (!defined('ABSPATH')) exit;
+?>
+<div class="wrap">
+    <h1><?php esc_html_e('تنظیمات اسکرپر قیمت ووکامرس', 'wc-price-scraper'); ?></h1>
+    <form method="post" action="options.php">
+        <?php settings_fields('wc_price_scraper_group'); ?>
+        
+        <h2><?php esc_html_e('تنظیمات عمومی', 'wc-price-scraper'); ?></h2>
+        <table class="form-table">
+            <tr valign="top">
+                <th scope="row"><label for="wc_price_scraper_cron_interval"><?php esc_html_e('فاصله به‌روزرسانی (دقیقه)', 'wc-price-scraper'); ?></label></th>
+                <td>
+                    <input type="number" id="wc_price_scraper_cron_interval" name="wc_price_scraper_cron_interval" value="<?php echo esc_attr(get_option('wc_price_scraper_cron_interval', 30)); ?>" min="1" class="small-text">
+                    <p class="description"><?php esc_html_e('هر چند دقیقه یکبار قیمت محصولات به صورت خودکار به‌روز شود.', 'wc-price-scraper'); ?></p>
+                </td>
+            </tr>
+            <tr valign="top">
+                <th scope="row"><?php esc_html_e('تا اجرای بعدی کرون جاب', 'wc-price-scraper'); ?></th>
+                <td>
+                    <?php
+                    $next_cron = wp_next_scheduled('wc_price_scraper_cron_event');
+                    $now = current_time('timestamp');
+                    $default_interval = intval(get_option('wc_price_scraper_cron_interval', 30)) * 60;
+                    $diff = $next_cron ? max(0, $next_cron - $now) : $default_interval;
+                    ?>
+                    <span id="cron_countdown" data-seconds-left="<?php echo esc_attr($diff); ?>">--:--</span>
+                    <p class="description"><?php esc_html_e('زمان باقیمانده تا اجرای بعدی به‌روزرسانی خودکار.', 'wc-price-scraper'); ?></p>
+                </td>
+            </tr>
+            <tr valign="top">
+                <th scope="row"><label for="wc_price_scraper_ignore_guarantee"><?php esc_html_e('نادیده گرفتن گارانتی‌ها', 'wc-price-scraper'); ?></label></th>
+                <td>
+                    <textarea id="wc_price_scraper_ignore_guarantee" name="wc_price_scraper_ignore_guarantee" rows="5" class="large-text code" placeholder="<?php esc_attr_e('هر نام گارانتی را در یک خط وارد کنید', 'wc-price-scraper'); ?>"><?php echo esc_textarea(get_option('wc_price_scraper_ignore_guarantee', '')); ?></textarea>
+                </td>
+            </tr>
+            <tr valign="top">
+                <th scope="row"><?php esc_html_e('دسته‌بندی‌های مستثنی', 'wc-price-scraper'); ?></th>
+                <td>
+                    <?php
+                    $ignore_cats_val = (array)get_option('wc_price_scraper_ignore_cats', []);
+                    $cats = get_terms(['taxonomy' => 'product_cat', 'hide_empty' => false]);
+                    if (!empty($cats) && !is_wp_error($cats)) {
+                        echo '<div class="category-checklist">';
+                        foreach ($cats as $c) {
+                            $checked = in_array($c->term_id, $ignore_cats_val) ? 'checked' : '';
+                            echo '<label><input type="checkbox" name="wc_price_scraper_ignore_cats[]" value="' . esc_attr($c->term_id) . '" ' . $checked . '> ' . esc_html($c->name) . '</label><br>';
+                        }
+                        echo '</div>';
+                    }
+                    ?>
+                </td>
+            </tr>
+        </table>
+        
+        <h2><?php esc_html_e('تنظیمات یکپارچه‌سازی با N8N', 'wc-price-scraper'); ?></h2>
+        <table class="form-table">
+            <tr valign="top">
+                <th scope="row"><?php esc_html_e('فعال‌سازی N8N', 'wc-price-scraper'); ?></th>
+                <td>
+                    <label for="wc_price_scraper_n8n_enable">
+                        <input name="wc_price_scraper_n8n_enable" type="checkbox" id="wc_price_scraper_n8n_enable" value="yes" <?php checked('yes', get_option('wc_price_scraper_n8n_enable', 'no')); ?> />
+                        <?php esc_html_e('ارسال داده به N8N پس از همگام‌سازی موفق.', 'wc-price-scraper'); ?>
+                    </label>
+                </td>
+            </tr>
+            <tr valign="top">
+                <th scope="row"><label for="wc_price_scraper_n8n_webhook_url"><?php esc_html_e('URL وب‌هوک N8N', 'wc-price-scraper'); ?></label></th>
+                <td>
+                    <input type="url" id="wc_price_scraper_n8n_webhook_url" name="wc_price_scraper_n8n_webhook_url" value="<?php echo esc_attr(get_option('wc_price_scraper_n8n_webhook_url', '')); ?>" class="large-text" placeholder="https://n8n.example.com/webhook/your-hook-id" />
+                </td>
+            </tr>
+            <tr valign="top">
+                <th scope="row"><label for="wc_price_scraper_n8n_model_slug"><?php esc_html_e('نامک ویژگی برای "مدل"', 'wc-price-scraper'); ?></label></th>
+                <td>
+                    <input type="text" id="wc_price_scraper_n8n_model_slug" name="wc_price_scraper_n8n_model_slug" value="<?php echo esc_attr(get_option('wc_price_scraper_n8n_model_slug', '')); ?>" class="regular-text" placeholder="<?php esc_attr_e('مثال: model یا size', 'wc-price-scraper'); ?>" />
+                    <p class="description"><?php esc_html_e('نامک (slug) ویژگی که می‌خواهید به عنوان "مدل" در داده‌های ارسالی به N8N استفاده شود (بدون پیشوند pa_).', 'wc-price-scraper'); ?></p>
+                </td>
+            </tr>
+             <tr valign="top">
+                <th scope="row"><label for="wc_price_scraper_n8n_purchase_link_text"><?php esc_html_e('متن لینک خرید برای شیت', 'wc-price-scraper'); ?></label></th>
+                <td>
+                    <input type="text" id="wc_price_scraper_n8n_purchase_link_text" name="wc_price_scraper_n8n_purchase_link_text" value="<?php echo esc_attr(get_option('wc_price_scraper_n8n_purchase_link_text', 'Buy Now')); ?>" class="regular-text" />
+                </td>
+            </tr>
+        </table>
+        
+        <?php submit_button(); ?>
+    </form>
+    <p><b>پلاگین توسعه داده شده توسط <a href="https://sajj.ir/" target="_blank">sajj.ir</a></b></p>
+</div>
+<style>.category-checklist { max-height: 200px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; background: #fff; }</style>
