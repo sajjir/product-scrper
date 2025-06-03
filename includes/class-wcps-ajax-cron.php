@@ -23,7 +23,7 @@ class WCPS_Ajax_Cron {
         $first_run_time = $start_immediately ? time() : time() + $interval_seconds;
         if (!wp_next_scheduled('wc_price_scraper_cron_event')) {
             wp_schedule_event($first_run_time, $this->schedule_name, 'wc_price_scraper_cron_event');
-            $this->plugin->debug_log("Cron event scheduled. Next run at: " . date('Y-m-d H:i:s', $first_run_time));
+            $this->plugin->debug_log("Cron event scheduled. Next run at: " . date_i18n('Y-m-d H:i:s', $first_run_time));
         }
     }
 

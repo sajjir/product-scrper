@@ -62,7 +62,6 @@ final class WC_Price_Scraper {
     }
 
     private function add_hooks() {
-        add_action('init', [$this, 'load_textdomain']);
         add_action('init', [$this, 'init_global_attributes']);
         
         // Admin Hooks
@@ -136,14 +135,13 @@ final class WC_Price_Scraper {
             wc_create_attribute(['name' => __('گارانتی', 'wc-price-scraper'), 'slug' => 'guarantee', 'type' => 'select', 'order_by' => 'menu_order', 'has_archives' => false]);
         }
     }
-
-    public function load_textdomain() {
-        load_plugin_textdomain('wc-price-scraper', false, dirname(plugin_basename(__FILE__)) . '/languages/');
-    }
 }
 
 // Initialize the plugin
 function wc_price_scraper() {
+    // Load plugin textdomain
+    load_plugin_textdomain('wc-price-scraper', false, dirname(plugin_basename(__FILE__)) . '/languages/');
+    // Return instance
     return WC_Price_Scraper::instance();
 }
-add_action('plugins_loaded', 'wc_price_scraper');
+add_action('plugins_loaded', 'wc_price_scraper', 10); // اولویت ۱۰ برای اطمینان
