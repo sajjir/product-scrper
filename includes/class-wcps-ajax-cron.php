@@ -5,7 +5,7 @@ class WCPS_Ajax_Cron {
 
     private $plugin;
     private $core;
-    private $schedule_name = 'wcps_custom_interval'; // A single, reliable schedule name
+    private $schedule_name = 'wcps_custom_interval';
 
     public function __construct(WC_Price_Scraper $plugin, WCPS_Core $core) {
         $this->plugin = $plugin;
@@ -13,56 +13,29 @@ class WCPS_Ajax_Cron {
     }
 
     /**
-     * Handles rescheduling the cron event. Called on settings save and by the manual button.
-     */
-    public function reschedule_cron_event($start_immediately = false) {
-        $this->deactivate(); // Clear any existing schedule
-        $interval_hours = (int) get_option('wc_price_scraper_cron_interval', 12);
-        if ($interval_hours <= 0) return; // Don't schedule if interval is invalid
-        $interval_seconds = $interval_hours * 3600;
-        $first_run_time = $start_immediately ? time() : time() + $interval_seconds;
-        if (!wp_next_scheduled('wc_price_scraper_cron_event')) {
-            wp_schedule_event($first_run_time, $this->schedule_name, 'wc_price_scraper_cron_event');
-            $this->plugin->debug_log("Cron event scheduled. Next run at: " . date_i18n('Y-m-d H:i:s', $first_run_time));
-        }
-    }
-
-    /**
-     * Does nothing on plugin activation to prevent automatic runs.
-     * The user must schedule the first event from the settings page.
+     * This function is called on plugin activation.
+     * It now ONLY logs a message and does NOT schedule any events.
      */
     public function activate() {
-        // Do nothing.
+        $this->plugin->debug_log('--- PLUGIN ACTIVATED: The new activate() function was called successfully. No schedule was set. ---');
     }
 
     /**
-     * Clears ALL scheduled cron events for this plugin upon deactivation.
+     * This function is called on plugin deactivation.
+     * It clears ALL recurring and one-off hooks related to this plugin.
      */
     public function deactivate() {
-        // Clear the recurring schedule hook
-        $recurring_timestamp = wp_next_scheduled('wc_price_scraper_cron_event');
-        if ($recurring_timestamp) {
-            wp_unschedule_event($recurring_timestamp, 'wc_price_scraper_cron_event');
-        }
         wp_clear_scheduled_hook('wc_price_scraper_cron_event');
-        $this->plugin->debug_log("Recurring cron event 'wc_price_scraper_cron_event' has been cleared.");
-
-        // Clear the one-off background job hook
-        $onetime_timestamp = wp_next_scheduled('wcps_force_run_all_event');
-        if ($onetime_timestamp) {
-            wp_unschedule_event($onetime_timestamp, 'wcps_force_run_all_event');
-        }
         wp_clear_scheduled_hook('wcps_force_run_all_event');
-        $this->plugin->debug_log("One-off cron event 'wcps_force_run_all_event' has been cleared.");
+        $this->plugin->debug_log("--- PLUGIN DEACTIVATED: All cron schedules have been cleared. ---");
     }
 
     /**
-     * Handles the settings save action.
-     * This function is triggered ONLY when the settings form is saved.
+     * Handles the settings save action from the settings page.
      * It schedules the RECURRING event to start IN THE FUTURE.
      */
     public function handle_settings_save() {
-        $this->deactivate(); // Clear the old schedule first
+        $this->deactivate(); // Clear any old schedules first
 
         $interval_hours = (int) get_option('wc_price_scraper_cron_interval', 12);
         if ($interval_hours <= 0) {
@@ -70,17 +43,14 @@ class WCPS_Ajax_Cron {
             return;
         }
 
-        // Schedule the first run to happen after the interval has passed.
         $future_timestamp = time() + ($interval_hours * 3600);
         wp_schedule_event($future_timestamp, $this->schedule_name, 'wc_price_scraper_cron_event');
-        
         $this->plugin->debug_log('Recurring schedule was set via settings page. Next run at: ' . date_i18n('Y-m-d H:i:s', $future_timestamp));
     }
 
     /**
-     * Handles the "Start Cron Job" button click.
-     * This function ONLY schedules a one-off, immediate, background job.
-     * It does NOT affect the main recurring schedule.
+     * Handles the "Start Cron Job" button click via AJAX.
+     * It ONLY schedules a one-off, immediate, background job.
      */
     public function ajax_force_reschedule_callback() {
         if (!current_user_can('manage_options') || !check_ajax_referer('wcps_reschedule_nonce', 'security')) {
@@ -94,39 +64,11 @@ class WCPS_Ajax_Cron {
             add_action('update_option_wc_price_scraper_cron_interval', [$this, 'handle_settings_save'], 10, 3);
         }
 
-        // Schedule the immediate background run
         wp_clear_scheduled_hook('wcps_force_run_all_event');
         wp_schedule_single_event(time() - 1, 'wcps_force_run_all_event');
-        
         $this->plugin->debug_log('Force run event scheduled in background via button.');
 
-        wp_send_json_success([
-            'message' => 'فرآیند اسکرپ در پس‌زمینه شروع شد. لطفاً چند دقیقه منتظر بمانید.'
-        ]);
-    }
-
-    /**
-     * Adds the custom interval to the list of cron schedules.
-     */
-    public function add_cron_interval($schedules) {
-        $interval_hours = get_option('wc_price_scraper_cron_interval', 12);
-        if ($interval_hours > 0) {
-            $schedules[$this->schedule_name] = [
-                'interval' => intval($interval_hours) * 3600, // 60 * 60
-                'display'  => sprintf(__('هر %d ساعت (اسکرپر)', 'wc-price-scraper'), $interval_hours)
-            ];
-        }
-        return $schedules;
-    }
-
-    /**
-     * Returns the time difference for the countdown timer. CORRECTED VERSION.
-     */
-    public function ajax_next_cron() {
-        $timestamp = wp_next_scheduled('wc_price_scraper_cron_event');
-        $now = current_time('timestamp');
-        $diff = $timestamp ? max(0, $timestamp - $now) : -1; // Return -1 if not scheduled
-        wp_send_json_success(['diff' => $diff]);
+        wp_send_json_success(['message' => 'فرآیند اسکرپ در پس‌زمینه شروع شد.']);
     }
 
     /**
@@ -145,10 +87,13 @@ class WCPS_Ajax_Cron {
                 ['key' => '_auto_sync_variations', 'value' => 'yes']
             ]
         ];
+        
         $all_products = get_posts($args);
         $priority_cats = (array) get_option('wc_price_scraper_priority_cats', []);
+        
         $priority_products = [];
         $other_products = [];
+
         if (!empty($priority_cats)) {
             foreach ($all_products as $product) {
                 $product_cats = wp_get_post_terms($product->ID, 'product_cat', ['fields' => 'ids']);
@@ -162,9 +107,11 @@ class WCPS_Ajax_Cron {
         } else {
             $sorted_products = $all_products;
         }
+        
         foreach ($sorted_products as $product) {
             $pid = $product->ID;
             $source_url = get_post_meta($pid, '_source_url', true);
+            
             if ($source_url) {
                 $this->core->process_single_product_scrape($pid, $source_url, false);
                 sleep(1); 
@@ -173,8 +120,26 @@ class WCPS_Ajax_Cron {
         $this->plugin->debug_log('Cron job finished.');
     }
 
-    // --- Original functions from your file, unchanged ---
+    // --- Other Functions ---
+    public function add_cron_interval($schedules) {
+        $interval_hours = get_option('wc_price_scraper_cron_interval', 12);
+        if ($interval_hours > 0) {
+            $schedules[$this->schedule_name] = [
+                'interval' => intval($interval_hours) * 3600,
+                'display'  => sprintf(__('هر %d ساعت (اسکرپر)', 'wc-price-scraper'), $interval_hours)
+            ];
+        }
+        return $schedules;
+    }
 
+    public function ajax_next_cron() {
+        $timestamp = wp_next_scheduled('wc_price_scraper_cron_event');
+        $now = current_time('timestamp');
+        $diff = $timestamp ? max(0, $timestamp - $now) : -1;
+        wp_send_json_success(['diff' => $diff]);
+    }
+    
+    // Original functions from your file, unchanged
     public function scrape_price_callback() {
         @ini_set('display_errors', 0);
         while (ob_get_level()) ob_end_clean();
