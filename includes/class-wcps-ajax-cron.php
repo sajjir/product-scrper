@@ -129,7 +129,17 @@ class WCPS_Ajax_Cron {
             $source_url = get_post_meta($pid, '_source_url', true);
             
             if ($source_url) {
-                $this->core->process_single_product_scrape($pid, $source_url, false);
+                $result = $this->core->process_single_product_scrape($pid, $source_url, false);
+
+                // Check if scrape was successful before triggering N8N
+                if (!is_wp_error($result)) {
+                    update_post_meta($pid, '_last_scraped_time', current_time('timestamp'));
+                    
+                    // N8N Integration Trigger
+                    if (isset($this->plugin->n8n_integration) && $this->plugin->n8n_integration->is_enabled()) {
+                        $this->plugin->n8n_integration->trigger_send_for_product($pid);
+                    }
+                }
                 sleep(1); 
             }
         }

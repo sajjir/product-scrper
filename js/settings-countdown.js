@@ -53,42 +53,28 @@ jQuery(document).ready(function($) {
         var button = $(this);
         var statusSpan = $('#reschedule_status');
         var spinner = button.siblings('.spinner');
+        var interval_val = $('#wc_price_scraper_cron_interval').val();
 
         button.prop('disabled', true);
         spinner.addClass('is-active').css('display', 'inline-block');
-        statusSpan.text('در حال اجرا...').css('color', '');
+        
+        // Optimistic UI: Assume success immediately
+        statusSpan.text('درخواست اجرای پس‌زمینه ارسال شد...').css('color', 'green');
 
-        var interval_val = $('#wc_price_scraper_cron_interval').val(); // Get current interval value
         $.ajax({
             url: wc_scraper_settings_vars.ajax_url,
             type: 'POST',
             data: {
                 action: 'wcps_force_reschedule',
                 security: wc_scraper_settings_vars.reschedule_nonce,
-                interval: interval_val // Send interval to server
-            },
-            success: function(response) {
-                if (response.success) {
-                    statusSpan.text(response.data.message).css('color', 'green');
-                    // Reload the page after a short delay to show the new schedule
-                    setTimeout(function() {
-                        location.reload();
-                    }, 2000); // 2 ثانیه تاخیر
-                } else {
-                    statusSpan.text('خطا: ' + (response.data.message || 'Unknown error')).css('color', 'red');
-                    button.prop('disabled', false); // Re-enable button on failure
-                    spinner.removeClass('is-active').hide();
-                }
-            },
-            error: function() {
-                statusSpan.text('خطای ارتباط با سرور.').css('color', 'red');
-                button.prop('disabled', false);
-                spinner.removeClass('is-active').hide();
-            },
-            complete: function() {
-                // We no longer manage the button/spinner here because we want them to stay disabled until reload
+                interval: interval_val
             }
         });
+        
+        // Reload the page to show the effect
+        setTimeout(function() {
+            location.reload();
+        }, 2000);
     });
 
     // --- Emergency Stop Button ---
@@ -104,33 +90,22 @@ jQuery(document).ready(function($) {
 
         button.prop('disabled', true);
         mainSpinner.addClass('is-active').css('display', 'inline-block');
-        statusSpan.text('در حال ارسال دستور توقف...').css('color', '');
 
+        // Optimistic UI: Assume success immediately
+        statusSpan.text('دستور توقف با موفقیت ارسال شد...').css('color', 'green');
+        
         $.ajax({
             url: wc_scraper_settings_vars.ajax_url,
             type: 'POST',
             data: {
                 action: 'wcps_force_stop',
-                security: wc_scraper_settings_vars.stop_nonce // این nonce را در مرحله بعد اضافه می‌کنیم
-            },
-            success: function(response) {
-                if (response.success) {
-                    statusSpan.text(response.data.message).css('color', 'green');
-                    setTimeout(function() {
-                        location.reload();
-                    }, 1500);
-                } else {
-                    statusSpan.text('خطا: ' + (response.data.message || 'Unknown error')).css('color', 'red');
-                    button.prop('disabled', false);
-                }
-            },
-            error: function() {
-                statusSpan.text('خطای ارتباط با سرور.').css('color', 'red');
-                button.prop('disabled', false);
-            },
-            complete: function() {
-                 mainSpinner.removeClass('is-active').hide();
+                security: wc_scraper_settings_vars.stop_nonce
             }
         });
+        
+        // Reload the page to show the cleared schedule
+        setTimeout(function() {
+            location.reload();
+        }, 2000);
     });
 });
