@@ -50,25 +50,41 @@ class WCPS_Ajax_Cron {
 
     /**
      * Handles the "Start Cron Job" button click via AJAX.
-     * It ONLY schedules a one-off, immediate, background job.
+     * Fires a non-blocking request to a new AJAX endpoint to run the task in the background.
      */
     public function ajax_force_reschedule_callback() {
         if (!current_user_can('manage_options') || !check_ajax_referer('wcps_reschedule_nonce', 'security')) {
             wp_send_json_error(['message' => 'درخواست نامعتبر.']);
         }
 
-        // Save the interval value from the form without triggering the recurring schedule hook.
+        // Save the interval value from the form
         if (isset($_POST['interval'])) {
             remove_action('update_option_wc_price_scraper_cron_interval', [$this, 'handle_settings_save'], 10);
             update_option('wc_price_scraper_cron_interval', intval($_POST['interval']));
             add_action('update_option_wc_price_scraper_cron_interval', [$this, 'handle_settings_save'], 10, 3);
         }
 
-        wp_clear_scheduled_hook('wcps_force_run_all_event');
-        wp_schedule_single_event(time() - 1, 'wcps_force_run_all_event');
-        $this->plugin->debug_log('Force run event scheduled in background via button.');
+        // Generate a one-time token for security
+        $token = wp_create_nonce('wcps_scrape_token');
+        set_transient('wcps_scrape_token', $token, 60); // Token is valid for 60 seconds
 
-        wp_send_json_success(['message' => 'فرآیند اسکرپ در پس‌زمینه شروع شد.']);
+        // Prepare the request to run the task
+        $request_args = [
+            'body' => [
+                'action' => 'wcps_run_scrape_task',
+                'token'  => $token
+            ],
+            'timeout'   => 1,
+            'blocking'  => false,
+            'sslverify' => apply_filters('https_local_ssl_verify', false),
+        ];
+
+        // Fire the background request
+        wp_remote_post(admin_url('admin-ajax.php'), $request_args);
+        
+        $this->plugin->debug_log('Fired background request to start scraping.');
+
+        wp_send_json_success(['message' => 'درخواست اجرای پس‌زمینه با موفقیت ارسال شد.']);
     }
 
     /**
@@ -203,5 +219,32 @@ class WCPS_Ajax_Cron {
         $this->deactivate();
 
         wp_send_json_success(['message' => 'تمام عملیات و زمان‌بندی‌ها با موفقیت پاک‌سازی شدند.']);
+    }
+
+    /**
+     * This is the handler that runs the actual long task.
+     * It's triggered by the non-blocking request from the function above.
+     */
+    public function run_scrape_task_handler() {
+        // Security check
+        $token = get_transient('wcps_scrape_token');
+        if (!$token || !isset($_POST['token']) || !wp_verify_nonce($_POST['token'], 'wcps_scrape_token')) {
+            $this->plugin->debug_log('Scrape task handler called with invalid or expired token.');
+            wp_die('Invalid security token.');
+        }
+
+        // The token is valid, so we delete it to prevent reuse
+        delete_transient('wcps_scrape_token');
+
+        // Increase time limit if possible
+        if (function_exists('set_time_limit')) {
+            set_time_limit(3600); // 1 hour
+        }
+
+        // Run the main scraping function
+        $this->cron_update_all_prices();
+
+        // End the process
+        wp_die('Scrape task finished.');
     }
 }

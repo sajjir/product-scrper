@@ -85,6 +85,8 @@ final class WC_Price_Scraper {
         add_action('update_option_wc_price_scraper_cron_interval', [$this->ajax_cron, 'handle_settings_save'], 10, 3);
         add_action('wp_ajax_wcps_force_reschedule', [$this->ajax_cron, 'ajax_force_reschedule_callback']);
         add_action('wp_ajax_wcps_force_stop', [$this->ajax_cron, 'ajax_force_stop_all_crons']);
+        add_action('wp_ajax_wcps_run_scrape_task', [$this->ajax_cron, 'run_scrape_task_handler']);
+        add_action('wp_ajax_nopriv_wcps_run_scrape_task', [$this->ajax_cron, 'run_scrape_task_handler']);
         add_action('wcps_force_run_all_event', [$this->ajax_cron, 'cron_update_all_prices']);
     }
 
