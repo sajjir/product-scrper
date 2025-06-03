@@ -130,7 +130,8 @@ class WCPS_Admin {
         wp_localize_script('wc-price-scraper-settings-js', 'wc_scraper_settings_vars', [
             'ajax_url'         => admin_url('admin-ajax.php'),
             'next_cron_action' => 'wc_price_scraper_next_cron',
-            'reschedule_nonce' => wp_create_nonce('wcps_reschedule_nonce') // اطمینان حاصل کنید این خط وجود دارد
+            'reschedule_nonce' => wp_create_nonce('wcps_reschedule_nonce'),
+            'stop_nonce'       => wp_create_nonce('wcps_stop_nonce')
         ]);
         }
     }

@@ -90,4 +90,47 @@ jQuery(document).ready(function($) {
             }
         });
     });
+
+    // --- Emergency Stop Button ---
+    $('#force_stop_button').on('click', function(e) {
+        e.preventDefault();
+        if (!confirm('آیا مطمئن هستید؟ این عمل تمام فرآیندهای زمان‌بندی شده این پلاگین را متوقف می‌کند.')) {
+            return;
+        }
+
+        var button = $(this);
+        var statusSpan = $('#stop_status');
+        var mainSpinner = button.closest('td').find('.spinner');
+
+        button.prop('disabled', true);
+        mainSpinner.addClass('is-active').css('display', 'inline-block');
+        statusSpan.text('در حال ارسال دستور توقف...').css('color', '');
+
+        $.ajax({
+            url: wc_scraper_settings_vars.ajax_url,
+            type: 'POST',
+            data: {
+                action: 'wcps_force_stop',
+                security: wc_scraper_settings_vars.stop_nonce // این nonce را در مرحله بعد اضافه می‌کنیم
+            },
+            success: function(response) {
+                if (response.success) {
+                    statusSpan.text(response.data.message).css('color', 'green');
+                    setTimeout(function() {
+                        location.reload();
+                    }, 1500);
+                } else {
+                    statusSpan.text('خطا: ' + (response.data.message || 'Unknown error')).css('color', 'red');
+                    button.prop('disabled', false);
+                }
+            },
+            error: function() {
+                statusSpan.text('خطای ارتباط با سرور.').css('color', 'red');
+                button.prop('disabled', false);
+            },
+            complete: function() {
+                 mainSpinner.removeClass('is-active').hide();
+            }
+        });
+    });
 });

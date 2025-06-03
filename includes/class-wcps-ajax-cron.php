@@ -189,4 +189,19 @@ class WCPS_Ajax_Cron {
         $variation->save();
         wp_send_json_success(['message' => 'Price updated']);
     }
+
+    /**
+     * AJAX handler for the Emergency Stop button.
+     * Forcefully clears all known cron schedules for this plugin.
+     */
+    public function ajax_force_stop_all_crons() {
+        if (!current_user_can('manage_options') || !check_ajax_referer('wcps_stop_nonce', 'security')) {
+            wp_send_json_error(['message' => 'درخواست نامعتبر.']);
+        }
+
+        // Call the comprehensive deactivate function to clear everything.
+        $this->deactivate();
+
+        wp_send_json_success(['message' => 'تمام عملیات و زمان‌بندی‌ها با موفقیت پاک‌سازی شدند.']);
+    }
 }

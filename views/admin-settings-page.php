@@ -106,6 +106,19 @@ if (!defined('ABSPATH')) exit;
             </tr>
         </table>
         
+        <h2 style="margin-top: 30px;"><?php esc_html_e('عملیات اضطراری', 'wc-price-scraper'); ?></h2>
+        <table class="form-table">
+            <tr valign="top">
+                <th scope="row"><?php esc_html_e('توقف کامل', 'wc-price-scraper'); ?></th>
+                <td>
+                    <button type="button" class="button button-danger" id="force_stop_button">توقف تمام عملیات و پاک‌سازی کامل صف</button>
+                    <p class="description"><?php esc_html_e('اگر احساس می‌کنید فرآیندی گیر کرده و متوقف نمی‌شود، از این دکمه استفاده کنید. این دکمه تمام کران‌جاب‌های این پلاگین (چه در حال اجرا و چه زمان‌بندی شده) را فوراً حذف می‌کند.', 'wc-price-scraper'); ?></p>
+                    <span id="stop_status" style="margin-left: 10px; font-weight: bold;"></span>
+                </td>
+            </tr>
+        </table>
+        <style>.button-danger { background: #d63638; border-color: #b62b2d; color: #fff; } .button-danger:hover { background: #b62b2d; border-color: #9f2628; }</style>
+        
         <?php submit_button(); ?>
     </form>
     <p><b>پلاگین توسعه داده شده توسط <a href="https://sajj.ir/" target="_blank">sajj.ir</a></b></p>
