@@ -70,20 +70,23 @@ jQuery(document).ready(function($) {
             success: function(response) {
                 if (response.success) {
                     statusSpan.text(response.data.message).css('color', 'green');
-                    // Reload the page to see all changes
+                    // Reload the page after a short delay to show the new schedule
                     setTimeout(function() {
                         location.reload();
-                    }, 1000);
+                    }, 2000); // 2 ثانیه تاخیر
                 } else {
                     statusSpan.text('خطا: ' + (response.data.message || 'Unknown error')).css('color', 'red');
+                    button.prop('disabled', false); // Re-enable button on failure
+                    spinner.removeClass('is-active').hide();
                 }
             },
             error: function() {
                 statusSpan.text('خطای ارتباط با سرور.').css('color', 'red');
-            },
-            complete: function() {
                 button.prop('disabled', false);
                 spinner.removeClass('is-active').hide();
+            },
+            complete: function() {
+                // We no longer manage the button/spinner here because we want them to stay disabled until reload
             }
         });
     });

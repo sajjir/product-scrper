@@ -62,6 +62,7 @@ final class WC_Price_Scraper {
     }
 
     private function add_hooks() {
+        add_action('init', [$this, 'load_textdomain']);
         add_action('init', [$this, 'init_global_attributes']);
         
         // Admin Hooks
@@ -86,8 +87,7 @@ final class WC_Price_Scraper {
             wc_price_scraper()->ajax_cron->reschedule_cron_event(false);
         }, 10, 0);
         add_action('wp_ajax_wcps_force_reschedule', [$this->ajax_cron, 'ajax_force_reschedule_callback']);
-
-
+        add_action('wcps_force_run_all_event', [$this->ajax_cron, 'cron_update_all_prices']);
     }
 
     // --- Utility Functions ---
@@ -135,6 +135,10 @@ final class WC_Price_Scraper {
         if (!taxonomy_exists('pa_guarantee')) {
             wc_create_attribute(['name' => __('گارانتی', 'wc-price-scraper'), 'slug' => 'guarantee', 'type' => 'select', 'order_by' => 'menu_order', 'has_archives' => false]);
         }
+    }
+
+    public function load_textdomain() {
+        load_plugin_textdomain('wc-price-scraper', false, dirname(plugin_basename(__FILE__)) . '/languages/');
     }
 }
 

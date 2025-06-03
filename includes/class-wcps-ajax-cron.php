@@ -71,20 +71,20 @@ class WCPS_Ajax_Cron {
         if (!current_user_can('manage_options') || !check_ajax_referer('wcps_reschedule_nonce', 'security')) {
             wp_send_json_error(['message' => 'درخواست نامعتبر.']);
         }
-        // Save the interval value from the form
+        // 1. Save the interval value from the form
         if (isset($_POST['interval'])) {
             update_option('wc_price_scraper_cron_interval', intval($_POST['interval']));
         }
-        $this->plugin->debug_log('Force starting cron job from admin button.');
-        $this->cron_update_all_prices(); // Run the scrape immediately
-        // Reschedule for the next run (in the future)
+        // 2. Clear any previously scheduled one-off events to avoid duplicates
+        wp_clear_scheduled_hook('wcps_force_run_all_event');
+        // 3. Schedule a one-off event to run immediately in the background
+        wp_schedule_single_event(time() - 1, 'wcps_force_run_all_event');
+        // 4. Reschedule the main recurring event for the future
         $this->reschedule_cron_event(false);
-        sleep(1);
-        $timestamp = wp_next_scheduled('wc_price_scraper_cron_event');
-        $new_time_display = $timestamp ? date_i18n(get_option('date_format') . ' @ ' . get_option('time_format'), $timestamp) : 'برنامه‌ریزی نشده';
+        $this->plugin->debug_log('Force run event scheduled in background.');
+        // 5. Send an immediate success response
         wp_send_json_success([
-            'message' => 'فرآیند اسکرپ شروع شد و زمان‌بندی بعدی با موفقیت انجام گرفت.',
-            'new_time_html' => 'زمان اجرای بعدی: ' . $new_time_display
+            'message' => 'فرآیند اسکرپ در پس‌زمینه شروع شد. صفحه تا چند ثانیه دیگر به‌روز می‌شود.'
         ]);
     }
 
