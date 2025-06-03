@@ -131,15 +131,22 @@ class WCPS_Ajax_Cron {
             if ($source_url) {
                 $result = $this->core->process_single_product_scrape($pid, $source_url, false);
 
-                // Check if scrape was successful before triggering N8N
+                // ==========================================================
+                // ++ شروع بخش اضافه‌شده برای ارسال به N8N ++
+                // ==========================================================
                 if (!is_wp_error($result)) {
                     update_post_meta($pid, '_last_scraped_time', current_time('timestamp'));
                     
                     // N8N Integration Trigger
                     if (isset($this->plugin->n8n_integration) && $this->plugin->n8n_integration->is_enabled()) {
+                        $this->plugin->debug_log("Cron: Scrape successful for product #{$pid}. Triggering N8N send.");
                         $this->plugin->n8n_integration->trigger_send_for_product($pid);
                     }
                 }
+                // ==========================================================
+                // -- پایان بخش اضافه‌شده --
+                // ==========================================================
+
                 sleep(1); 
             }
         }
