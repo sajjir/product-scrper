@@ -58,12 +58,14 @@ jQuery(document).ready(function($) {
         spinner.addClass('is-active').css('display', 'inline-block');
         statusSpan.text('در حال اجرا...').css('color', '');
 
+        var interval_val = $('#wc_price_scraper_cron_interval').val(); // Get current interval value
         $.ajax({
             url: wc_scraper_settings_vars.ajax_url,
             type: 'POST',
             data: {
                 action: 'wcps_force_reschedule',
-                security: wc_scraper_settings_vars.reschedule_nonce
+                security: wc_scraper_settings_vars.reschedule_nonce,
+                interval: interval_val // Send interval to server
             },
             success: function(response) {
                 if (response.success) {

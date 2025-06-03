@@ -49,10 +49,7 @@ class WCPS_Core {
         update_post_meta($pid, '_scraped_data', $data);
 
         $auto_sync_enabled = get_post_meta($pid, '_auto_sync_variations', true) === 'yes';
-        $ignored_categories = (array)get_option('wc_price_scraper_ignore_cats', []);
-        $product_categories = wp_get_post_terms($pid, 'product_cat', ['fields' => 'ids']);
-
-        if ($is_ajax || ($auto_sync_enabled && !array_intersect($ignored_categories, $product_categories))) {
+        if ($is_ajax || $auto_sync_enabled) {
             $this->sync_product_variations($pid, $data);
         }
 

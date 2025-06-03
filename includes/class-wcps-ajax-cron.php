@@ -15,11 +15,16 @@ class WCPS_Ajax_Cron {
     /**
      * Handles rescheduling the cron event. Called on settings save and by the manual button.
      */
-    public function reschedule_cron_event() {
-        // First, clear any existing scheduled events for this hook
-        $this->deactivate();
-        // Next, schedule the new event with the updated interval
-        $this->activate();
+    public function reschedule_cron_event($start_immediately = false) {
+        $this->deactivate(); // Clear any existing schedule
+        $interval_hours = (int) get_option('wc_price_scraper_cron_interval', 12);
+        if ($interval_hours <= 0) return; // Don't schedule if interval is invalid
+        $interval_seconds = $interval_hours * 3600;
+        $first_run_time = $start_immediately ? time() : time() + $interval_seconds;
+        if (!wp_next_scheduled('wc_price_scraper_cron_event')) {
+            wp_schedule_event($first_run_time, $this->schedule_name, 'wc_price_scraper_cron_event');
+            $this->plugin->debug_log("Cron event scheduled. Next run at: " . date('Y-m-d H:i:s', $first_run_time));
+        }
     }
 
     /**
@@ -66,17 +71,19 @@ class WCPS_Ajax_Cron {
         if (!current_user_can('manage_options') || !check_ajax_referer('wcps_reschedule_nonce', 'security')) {
             wp_send_json_error(['message' => 'درخواست نامعتبر.']);
         }
-        // 1. اجرای فوری فرآیند اسکرپ تمام محصولات
+        // Save the interval value from the form
+        if (isset($_POST['interval'])) {
+            update_option('wc_price_scraper_cron_interval', intval($_POST['interval']));
+        }
         $this->plugin->debug_log('Force starting cron job from admin button.');
-        $this->cron_update_all_prices();
-        // 2. زمان‌بندی مجدد برای اجرای بعدی
-        $this->reschedule_cron_event();
-        // Wait a second to make sure the new schedule is registered before we check for it.
+        $this->cron_update_all_prices(); // Run the scrape immediately
+        // Reschedule for the next run (in the future)
+        $this->reschedule_cron_event(false);
         sleep(1);
         $timestamp = wp_next_scheduled('wc_price_scraper_cron_event');
         $new_time_display = $timestamp ? date_i18n(get_option('date_format') . ' @ ' . get_option('time_format'), $timestamp) : 'برنامه‌ریزی نشده';
         wp_send_json_success([
-            'message' => 'فرآیند اسکرپ شروع شد و زمان‌بندی برای اجرای بعدی با موفقیت انجام گرفت.',
+            'message' => 'فرآیند اسکرپ شروع شد و زمان‌بندی بعدی با موفقیت انجام گرفت.',
             'new_time_html' => 'زمان اجرای بعدی: ' . $new_time_display
         ]);
     }
@@ -107,13 +114,26 @@ class WCPS_Ajax_Cron {
                 ['key' => '_auto_sync_variations', 'value' => 'yes']
             ]
         ];
-        
-        $products = get_posts($args);
-        
-        foreach ($products as $product) {
+        $all_products = get_posts($args);
+        $priority_cats = (array) get_option('wc_price_scraper_priority_cats', []);
+        $priority_products = [];
+        $other_products = [];
+        if (!empty($priority_cats)) {
+            foreach ($all_products as $product) {
+                $product_cats = wp_get_post_terms($product->ID, 'product_cat', ['fields' => 'ids']);
+                if (!empty(array_intersect($priority_cats, $product_cats))) {
+                    $priority_products[] = $product;
+                } else {
+                    $other_products[] = $product;
+                }
+            }
+            $sorted_products = array_merge($priority_products, $other_products);
+        } else {
+            $sorted_products = $all_products;
+        }
+        foreach ($sorted_products as $product) {
             $pid = $product->ID;
             $source_url = get_post_meta($pid, '_source_url', true);
-            
             if ($source_url) {
                 $this->core->process_single_product_scrape($pid, $source_url, false);
                 sleep(1); 

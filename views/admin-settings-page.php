@@ -21,7 +21,7 @@ if (!defined('ABSPATH')) exit;
                     <?php
                     $next_cron = wp_next_scheduled('wc_price_scraper_cron_event');
                     $now = current_time('timestamp');
-                    $default_interval = intval(get_option('wc_price_scraper_cron_interval', 30)) * 60;
+                    $default_interval = intval(get_option('wc_price_scraper_cron_interval', 12)) * 3600;
                     $diff = $next_cron ? max(0, $next_cron - $now) : $default_interval;
                     $next_cron_str = $next_cron ? date_i18n(get_option('date_format') . ' @ ' . get_option('time_format'), $next_cron) : __('برنامه‌ریزی نشده', 'wc-price-scraper');
                     ?>
@@ -53,16 +53,19 @@ if (!defined('ABSPATH')) exit;
                 </td>
             </tr>
             <tr valign="top">
-                <th scope="row"><?php esc_html_e('دسته‌بندی‌های مستثنی', 'wc-price-scraper'); ?></th>
+                <th scope="row">
+                    <?php esc_html_e('اولویت‌بندی دسته‌بندی‌ها', 'wc-price-scraper'); ?>
+                    <p class="description" style="font-weight:normal;"><?php esc_html_e('دسته‌هایی که انتخاب می‌کنید، در ابتدای صف اسکرپ قرار می‌گیرند.', 'wc-price-scraper'); ?></p>
+                </th>
                 <td>
                     <?php
-                    $ignore_cats_val = (array)get_option('wc_price_scraper_ignore_cats', []);
+                    $priority_cats_val = (array)get_option('wc_price_scraper_priority_cats', []);
                     $cats = get_terms(['taxonomy' => 'product_cat', 'hide_empty' => false]);
                     if (!empty($cats) && !is_wp_error($cats)) {
                         echo '<div class="category-checklist">';
                         foreach ($cats as $c) {
-                            $checked = in_array($c->term_id, $ignore_cats_val) ? 'checked' : '';
-                            echo '<label><input type="checkbox" name="wc_price_scraper_ignore_cats[]" value="' . esc_attr($c->term_id) . '" ' . $checked . '> ' . esc_html($c->name) . '</label><br>';
+                            $checked = in_array($c->term_id, $priority_cats_val) ? 'checked' : '';
+                            echo '<label><input type="checkbox" name="wc_price_scraper_priority_cats[]" value="' . esc_attr($c->term_id) . '" ' . $checked . '> ' . esc_html($c->name) . '</label><br>';
                         }
                         echo '</div>';
                     }
