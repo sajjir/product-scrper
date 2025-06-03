@@ -28,28 +28,83 @@ class WCPS_Ajax_Cron {
     }
 
     /**
-     * Schedules the cron event if it's not already scheduled.
+     * Does nothing on plugin activation to prevent automatic runs.
+     * The user must schedule the first event from the settings page.
      */
     public function activate() {
-        if (!wp_next_scheduled('wc_price_scraper_cron_event')) {
-            wp_schedule_event(time(), $this->schedule_name, 'wc_price_scraper_cron_event');
-            $this->plugin->debug_log("Cron event scheduled with hook 'wc_price_scraper_cron_event'.");
-        }
+        // Do nothing.
     }
 
     /**
-     * Clears the scheduled cron event.
+     * Clears ALL scheduled cron events for this plugin upon deactivation.
      */
     public function deactivate() {
-        $timestamp = wp_next_scheduled('wc_price_scraper_cron_event');
-        if ($timestamp) {
-            wp_unschedule_event($timestamp, 'wc_price_scraper_cron_event');
+        // Clear the recurring schedule hook
+        $recurring_timestamp = wp_next_scheduled('wc_price_scraper_cron_event');
+        if ($recurring_timestamp) {
+            wp_unschedule_event($recurring_timestamp, 'wc_price_scraper_cron_event');
         }
-        // Also clear any other schedules for this hook for good measure
         wp_clear_scheduled_hook('wc_price_scraper_cron_event');
-        $this->plugin->debug_log("All scheduled cron events for hook 'wc_price_scraper_cron_event' have been cleared.");
+        $this->plugin->debug_log("Recurring cron event 'wc_price_scraper_cron_event' has been cleared.");
+
+        // Clear the one-off background job hook
+        $onetime_timestamp = wp_next_scheduled('wcps_force_run_all_event');
+        if ($onetime_timestamp) {
+            wp_unschedule_event($onetime_timestamp, 'wcps_force_run_all_event');
+        }
+        wp_clear_scheduled_hook('wcps_force_run_all_event');
+        $this->plugin->debug_log("One-off cron event 'wcps_force_run_all_event' has been cleared.");
     }
-    
+
+    /**
+     * Handles the settings save action.
+     * This function is triggered ONLY when the settings form is saved.
+     * It schedules the RECURRING event to start IN THE FUTURE.
+     */
+    public function handle_settings_save() {
+        $this->deactivate(); // Clear the old schedule first
+
+        $interval_hours = (int) get_option('wc_price_scraper_cron_interval', 12);
+        if ($interval_hours <= 0) {
+            $this->plugin->debug_log('Cron interval is zero or less. No new schedule was set.');
+            return;
+        }
+
+        // Schedule the first run to happen after the interval has passed.
+        $future_timestamp = time() + ($interval_hours * 3600);
+        wp_schedule_event($future_timestamp, $this->schedule_name, 'wc_price_scraper_cron_event');
+        
+        $this->plugin->debug_log('Recurring schedule was set via settings page. Next run at: ' . date_i18n('Y-m-d H:i:s', $future_timestamp));
+    }
+
+    /**
+     * Handles the "Start Cron Job" button click.
+     * This function ONLY schedules a one-off, immediate, background job.
+     * It does NOT affect the main recurring schedule.
+     */
+    public function ajax_force_reschedule_callback() {
+        if (!current_user_can('manage_options') || !check_ajax_referer('wcps_reschedule_nonce', 'security')) {
+            wp_send_json_error(['message' => 'درخواست نامعتبر.']);
+        }
+
+        // Save the interval value from the form without triggering the recurring schedule hook.
+        if (isset($_POST['interval'])) {
+            remove_action('update_option_wc_price_scraper_cron_interval', [$this, 'handle_settings_save'], 10);
+            update_option('wc_price_scraper_cron_interval', intval($_POST['interval']));
+            add_action('update_option_wc_price_scraper_cron_interval', [$this, 'handle_settings_save'], 10, 3);
+        }
+
+        // Schedule the immediate background run
+        wp_clear_scheduled_hook('wcps_force_run_all_event');
+        wp_schedule_single_event(time() - 1, 'wcps_force_run_all_event');
+        
+        $this->plugin->debug_log('Force run event scheduled in background via button.');
+
+        wp_send_json_success([
+            'message' => 'فرآیند اسکرپ در پس‌زمینه شروع شد. لطفاً چند دقیقه منتظر بمانید.'
+        ]);
+    }
+
     /**
      * Adds the custom interval to the list of cron schedules.
      */
@@ -62,30 +117,6 @@ class WCPS_Ajax_Cron {
             ];
         }
         return $schedules;
-    }
-
-    /**
-     * Handles the AJAX request for the manual reschedule button.
-     */
-    public function ajax_force_reschedule_callback() {
-        if (!current_user_can('manage_options') || !check_ajax_referer('wcps_reschedule_nonce', 'security')) {
-            wp_send_json_error(['message' => 'درخواست نامعتبر.']);
-        }
-        // 1. Save the interval value from the form
-        if (isset($_POST['interval'])) {
-            update_option('wc_price_scraper_cron_interval', intval($_POST['interval']));
-        }
-        // 2. Clear any previously scheduled one-off events to avoid duplicates
-        wp_clear_scheduled_hook('wcps_force_run_all_event');
-        // 3. Schedule a one-off event to run immediately in the background
-        wp_schedule_single_event(time() - 1, 'wcps_force_run_all_event');
-        // 4. Reschedule the main recurring event for the future
-        $this->reschedule_cron_event(false);
-        $this->plugin->debug_log('Force run event scheduled in background.');
-        // 5. Send an immediate success response
-        wp_send_json_success([
-            'message' => 'فرآیند اسکرپ در پس‌زمینه شروع شد. صفحه تا چند ثانیه دیگر به‌روز می‌شود.'
-        ]);
     }
 
     /**
