@@ -50,7 +50,7 @@ class WCPS_Ajax_Cron {
 
     /**
      * Handles the "Start Cron Job" button click via AJAX.
-     * Fires a non-blocking request to a new AJAX endpoint to run the task in the background.
+     * Fires a non-blocking request using a more reliable token method.
      */
     public function ajax_force_reschedule_callback() {
         if (!current_user_can('manage_options') || !check_ajax_referer('wcps_reschedule_nonce', 'security')) {
@@ -64,15 +64,15 @@ class WCPS_Ajax_Cron {
             add_action('update_option_wc_price_scraper_cron_interval', [$this, 'handle_settings_save'], 10, 3);
         }
 
-        // Generate a one-time token for security
-        $token = wp_create_nonce('wcps_scrape_token');
+        // Generate a simple, random token for security
+        $token = wp_generate_password(32, false);
         set_transient('wcps_scrape_token', $token, 60); // Token is valid for 60 seconds
 
         // Prepare the request to run the task
         $request_args = [
             'body' => [
                 'action' => 'wcps_run_scrape_task',
-                'token'  => $token
+                'token'  => $token // Use the new reliable token
             ],
             'timeout'   => 1,
             'blocking'  => false,
@@ -223,12 +223,12 @@ class WCPS_Ajax_Cron {
 
     /**
      * This is the handler that runs the actual long task.
-     * It's triggered by the non-blocking request from the function above.
+     * It now uses the more reliable token for verification.
      */
     public function run_scrape_task_handler() {
-        // Security check
-        $token = get_transient('wcps_scrape_token');
-        if (!$token || !isset($_POST['token']) || !wp_verify_nonce($_POST['token'], 'wcps_scrape_token')) {
+        // Security check with the new token method
+        $saved_token = get_transient('wcps_scrape_token');
+        if (empty($saved_token) || empty($_POST['token']) || !hash_equals($saved_token, $_POST['token'])) {
             $this->plugin->debug_log('Scrape task handler called with invalid or expired token.');
             wp_die('Invalid security token.');
         }
