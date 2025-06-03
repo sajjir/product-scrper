@@ -49,11 +49,11 @@ class WCPS_Ajax_Cron {
      * Adds the custom interval to the list of cron schedules.
      */
     public function add_cron_interval($schedules) {
-        $interval_minutes = get_option('wc_price_scraper_cron_interval', 30);
-        if ($interval_minutes > 0) {
+        $interval_hours = get_option('wc_price_scraper_cron_interval', 12);
+        if ($interval_hours > 0) {
             $schedules[$this->schedule_name] = [
-                'interval' => intval($interval_minutes) * 60,
-                'display'  => sprintf(__('هر %d دقیقه (اسکرپر)', 'wc-price-scraper'), $interval_minutes)
+                'interval' => intval($interval_hours) * 3600, // 60 * 60
+                'display'  => sprintf(__('هر %d ساعت (اسکرپر)', 'wc-price-scraper'), $interval_hours)
             ];
         }
         return $schedules;
@@ -66,17 +66,17 @@ class WCPS_Ajax_Cron {
         if (!current_user_can('manage_options') || !check_ajax_referer('wcps_reschedule_nonce', 'security')) {
             wp_send_json_error(['message' => 'درخواست نامعتبر.']);
         }
-        
+        // 1. اجرای فوری فرآیند اسکرپ تمام محصولات
+        $this->plugin->debug_log('Force starting cron job from admin button.');
+        $this->cron_update_all_prices();
+        // 2. زمان‌بندی مجدد برای اجرای بعدی
         $this->reschedule_cron_event();
-        
-        // Let's wait a second to make sure the new schedule is registered before we check for it.
+        // Wait a second to make sure the new schedule is registered before we check for it.
         sleep(1);
-
         $timestamp = wp_next_scheduled('wc_price_scraper_cron_event');
         $new_time_display = $timestamp ? date_i18n(get_option('date_format') . ' @ ' . get_option('time_format'), $timestamp) : 'برنامه‌ریزی نشده';
-
         wp_send_json_success([
-            'message' => 'زمان‌بندی با موفقیت انجام شد.',
+            'message' => 'فرآیند اسکرپ شروع شد و زمان‌بندی برای اجرای بعدی با موفقیت انجام گرفت.',
             'new_time_html' => 'زمان اجرای بعدی: ' . $new_time_display
         ]);
     }

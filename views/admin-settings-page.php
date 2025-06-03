@@ -9,10 +9,10 @@ if (!defined('ABSPATH')) exit;
         <h2><?php esc_html_e('تنظیمات عمومی', 'wc-price-scraper'); ?></h2>
         <table class="form-table">
             <tr valign="top">
-                <th scope="row"><label for="wc_price_scraper_cron_interval"><?php esc_html_e('فاصله به‌روزرسانی (دقیقه)', 'wc-price-scraper'); ?></label></th>
+                <th scope="row"><label for="wc_price_scraper_cron_interval"><?php esc_html_e('فاصله به‌روزرسانی (ساعت)', 'wc-price-scraper'); ?></label></th>
                 <td>
-                    <input type="number" id="wc_price_scraper_cron_interval" name="wc_price_scraper_cron_interval" value="<?php echo esc_attr(get_option('wc_price_scraper_cron_interval', 30)); ?>" min="1" class="small-text">
-                    <p class="description"><?php esc_html_e('هر چند دقیقه یکبار قیمت محصولات به صورت خودکار به‌روز شود.', 'wc-price-scraper'); ?></p>
+                    <input type="number" id="wc_price_scraper_cron_interval" name="wc_price_scraper_cron_interval" value="<?php echo esc_attr(get_option('wc_price_scraper_cron_interval', 12)); ?>" min="1" class="small-text">
+                    <p class="description"><?php esc_html_e('هر چند ساعت یکبار قیمت تمام محصولات به صورت خودکار به‌روز شود. (مثال: برای اجرا هر 12 ساعت، عدد 12 را وارد کنید)', 'wc-price-scraper'); ?></p>
                 </td>
             </tr>
             <tr valign="top">
@@ -39,7 +39,7 @@ if (!defined('ABSPATH')) exit;
                     <p class="description"><?php esc_html_e('زمان باقیمانده تا اجرای بعدی به‌روزرسانی خودکار.', 'wc-price-scraper'); ?></p>
                     
                     <p style="margin-top: 10px;">
-                        <button type="button" class="button button-secondary" id="force_reschedule_button">زمان‌بندی مجدد دستی</button>
+                        <button type="button" class="button button-primary" id="force_reschedule_button">شروع کران جاب</button>
                         <span id="reschedule_status" style="margin-right: 10px; font-weight: bold;"></span>
                         <span class="spinner" style="float: none; margin-top: 4px;"></span>
                     </p>

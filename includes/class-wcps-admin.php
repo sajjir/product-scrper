@@ -46,7 +46,7 @@ class WCPS_Admin {
         $option_group = 'wc_price_scraper_group';
 
         // General Settings
-        register_setting($option_group, 'wc_price_scraper_cron_interval', ['type' => 'integer', 'sanitize_callback' => 'absint', 'default' => 30]);
+        register_setting($option_group, 'wc_price_scraper_cron_interval', ['type' => 'integer', 'sanitize_callback' => 'absint', 'default' => 12]);
         register_setting($option_group, 'wc_price_scraper_ignore_guarantee', ['type' => 'string', 'sanitize_callback' => 'sanitize_textarea_field', 'default' => '']);
         register_setting($option_group, 'wc_price_scraper_ignore_cats', ['type' => 'array', 'sanitize_callback' => [$this, 'sanitize_category_ids'], 'default' => []]);
 
