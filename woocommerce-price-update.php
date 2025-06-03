@@ -36,7 +36,8 @@ final class WC_Price_Scraper {
     }
 
     private function __construct() {
-        $this->debug_log_path = WC_PRICE_SCRAPER_PATH . 'debug.log';
+        // تغییر مسیر لاگ به wp-content/debug.log برای اطمینان از دسترسی
+        $this->debug_log_path = WP_CONTENT_DIR . '/debug.log';
         $this->includes();
     }
 
@@ -81,6 +82,10 @@ final class WC_Price_Scraper {
         add_action('wc_price_scraper_cron_event', [$this->ajax_cron, 'cron_update_all_prices']);
         register_activation_hook(__FILE__, [$this->ajax_cron, 'activate']);
         register_deactivation_hook(__FILE__, [$this->ajax_cron, 'deactivate']);
+        add_action('update_option_wc_price_scraper_cron_interval', [$this->ajax_cron, 'reschedule_cron_event'], 10, 3);
+        add_action('wp_ajax_wcps_force_reschedule', [$this->ajax_cron, 'ajax_force_reschedule_callback']);
+
+
     }
 
     // --- Utility Functions ---

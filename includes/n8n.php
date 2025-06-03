@@ -67,12 +67,12 @@ class WC_Price_Scraper_N8N_Integration {
             return;
         }
 
-        // **** شروع بخش اضافه شده ****
+        // **** شروع بخش ویرایش شده برای تاریخ فارسی ****
         // 1. خواندن زمان آخرین اسکرپ از دیتابیس
         $last_scraped_timestamp = get_post_meta($product_id, '_last_scraped_time', true);
-        // 2. تبدیل به فرمت استاندارد ISO 8601 (بهترین فرمت برای API ها)
-        $last_scraped_iso_date = $last_scraped_timestamp ? date('c', $last_scraped_timestamp) : null;
-        // **** پایان بخش اضافه شده ****
+        // 2. تبدیل به فرمت فارسی/شمسی با همان متود صفحه محصول
+        $last_scraped_fa = $last_scraped_timestamp ? date_i18n(get_option('date_format') . ' @ ' . get_option('time_format'), $last_scraped_timestamp) : null;
+        // **** پایان بخش ویرایش شده ****
 
         $payload = [];
         $parent_product_name = $product->get_name();
@@ -96,8 +96,8 @@ class WC_Price_Scraper_N8N_Integration {
                 'stock_status'         => $variation_product->get_stock_status(),
                 'purchase_link_url'    => $parent_product_link,
                 'purchase_link_text'   => $purchase_link_text,
-                // **** اضافه کردن فیلد تاریخ به payload ****
-                'last_scraped_at'      => $last_scraped_iso_date,
+                // **** ارسال تاریخ به فرمت فارسی ****
+                'last_scraped_at'      => $last_scraped_fa,
             ];
 
             // Get model attribute based on settings (comma-separated slugs)

@@ -87,44 +87,51 @@ class WCPS_Admin {
      * @param string $hook The current admin page hook.
      */
     public function enqueue_admin_scripts($hook) {
-        global $post;
-        $screen = get_current_screen();
+    global $post;
+    $screen = get_current_screen();
 
-        // Script for the Product Edit page
-        if ($screen && 'product' === $screen->id && ('post.php' === $hook || 'post-new.php' === $hook)) {
-            wp_enqueue_script(
-                'wc-price-scraper-js',
-                WC_PRICE_SCRAPER_URL . 'js/price-scraper.js',
-                ['jquery'],
-                WC_PRICE_SCRAPER_VERSION,
-                true
-            );
+    // Script for the Product Edit page
+    if ($screen && 'product' === $screen->id && ('post.php' === $hook || 'post-new.php' === $hook)) {
+        wp_enqueue_script(
+            'wc-price-scraper-js',
+            WC_PRICE_SCRAPER_URL . 'js/price-scraper.js',
+            ['jquery'],
+            WC_PRICE_SCRAPER_VERSION,
+            true
+        );
 
-            $product = $post ? wc_get_product($post->ID) : null;
-            $default_attributes = $product ? $product->get_default_attributes() : [];
+        $product = $post ? wc_get_product($post->ID) : null;
+        $default_attributes = $product ? $product->get_default_attributes() : [];
 
-            wp_localize_script('wc-price-scraper-js', 'price_scraper_vars', [
-                'ajax_url'           => admin_url('admin-ajax.php'),
-                'security'           => wp_create_nonce('scrape_price_nonce'),
-                'product_id'         => $post ? $post->ID : 0,
-                'default_attributes' => $default_attributes,
-                'loading_text'       => __('در حال اسکرپ...', 'wc-price-scraper'),
-                'success_text'       => __('اسکرپ با موفقیت انجام شد! در حال بارگذاری مجدد...', 'wc-price-scraper'),
-                'error_text'         => __('اسکرپ ناموفق: ', 'wc-price-scraper'),
-                'unknown_error'      => __('خطای ناشناخته.', 'wc-price-scraper'),
-                'ajax_error'         => __('خطای AJAX: ', 'wc-price-scraper'),
+        wp_localize_script('wc-price-scraper-js', 'price_scraper_vars', [
+            'ajax_url'           => admin_url('admin-ajax.php'),
+            'security'           => wp_create_nonce('scrape_price_nonce'),
+            'product_id'         => $post ? $post->ID : 0,
+            'default_attributes' => $default_attributes,
+            'loading_text'       => __('در حال اسکرپ...', 'wc-price-scraper'),
+            'success_text'       => __('اسکرپ با موفقیت انجام شد! در حال بارگذاری مجدد...', 'wc-price-scraper'),
+            'error_text'         => __('اسکرپ ناموفق: ', 'wc-price-scraper'),
+            'unknown_error'      => __('خطای ناشناخته.', 'wc-price-scraper'),
+            'ajax_error'         => __('خطای AJAX: ', 'wc-price-scraper'),
             ]);
         }
 
-        // Script for the plugin's Settings page
-        if ($screen && 'settings_page_wc-price-scraper' === $screen->id) {
-            wp_enqueue_script(
-                'wc-price-scraper-settings-js',
-                WC_PRICE_SCRAPER_URL . 'js/settings-countdown.js',
-                ['jquery'],
-                WC_PRICE_SCRAPER_VERSION,
-                true
-            );
+    // Script for the plugin's Settings page
+     if ($screen && 'settings_page_wc-price-scraper' === $screen->id) {
+        wp_enqueue_script(
+            'wc-price-scraper-settings-js',
+            WC_PRICE_SCRAPER_URL . 'js/settings-countdown.js',
+            ['jquery'],
+            WC_PRICE_SCRAPER_VERSION,
+            true
+        );
+        
+        // ++ این بخش بسیار مهم است ++
+        wp_localize_script('wc-price-scraper-settings-js', 'wc_scraper_settings_vars', [
+            'ajax_url'         => admin_url('admin-ajax.php'),
+            'next_cron_action' => 'wc_price_scraper_next_cron',
+            'reschedule_nonce' => wp_create_nonce('wcps_reschedule_nonce') // اطمینان حاصل کنید این خط وجود دارد
+        ]);
         }
     }
 

@@ -23,9 +23,27 @@ if (!defined('ABSPATH')) exit;
                     $now = current_time('timestamp');
                     $default_interval = intval(get_option('wc_price_scraper_cron_interval', 30)) * 60;
                     $diff = $next_cron ? max(0, $next_cron - $now) : $default_interval;
+                    $next_cron_str = $next_cron ? date_i18n(get_option('date_format') . ' @ ' . get_option('time_format'), $next_cron) : __('برنامه‌ریزی نشده', 'wc-price-scraper');
+                    ?>
+                    <span id="cron_countdown" data-seconds-left="<?php echo esc_attr($diff); ?>">--:--</span>
+                    <span style="margin-right:10px; color:#0073aa;"><b><?php esc_html_e('زمان اجرای بعدی:', 'wc-price-scraper'); ?></b> <?php echo esc_html($next_cron_str); ?></span>
+                    <p class="description"><?php esc_html_e('زمان باقیمانده تا اجرای بعدی به‌روزرسانی خودکار.', 'wc-price-scraper'); ?></p>
+                </td>
+            </tr>  <tr valign="top">
+                <th scope="row"><?php esc_html_e('تا اجرای بعدی کرون جاب', 'wc-price-scraper'); ?></th>
+                <td>
+                    <?php
+                    // ... کد نمایش زمان ...
                     ?>
                     <span id="cron_countdown" data-seconds-left="<?php echo esc_attr($diff); ?>">--:--</span>
                     <p class="description"><?php esc_html_e('زمان باقیمانده تا اجرای بعدی به‌روزرسانی خودکار.', 'wc-price-scraper'); ?></p>
+                    
+                    <p style="margin-top: 10px;">
+                        <button type="button" class="button button-secondary" id="force_reschedule_button">زمان‌بندی مجدد دستی</button>
+                        <span id="reschedule_status" style="margin-right: 10px; font-weight: bold;"></span>
+                        <span class="spinner" style="float: none; margin-top: 4px;"></span>
+                    </p>
+
                 </td>
             </tr>
             <tr valign="top">
@@ -90,3 +108,6 @@ if (!defined('ABSPATH')) exit;
     <p><b>پلاگین توسعه داده شده توسط <a href="https://sajj.ir/" target="_blank">sajj.ir</a></b></p>
 </div>
 <style>.category-checklist { max-height: 200px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; background: #fff; }</style>
+<?php
+file_put_contents(WP_CONTENT_DIR . '/test_cron_wcps.txt', date('Y-m-d H:i:s') . " CRON WCPS\n", FILE_APPEND);
+?>
