@@ -198,11 +198,32 @@ class WCPS_Core {
 }
 
     /**
-     * ++++++++++ تابع حل کننده مشکل اصلی ++++++++++
-     * این تابع از روش پایدار و قدیمی برای ساخت آرایه ویژگی‌ها و ذخیره مستقیم آن استفاده می‌کند.
+     * ++++++++++ تابع حل کننده مشکل اصلی (نسخه اصلاح شده) ++++++++++
+     * این تابع ویژگی‌های والد را بر اساس داده‌های اسکرپ شده تنظیم می‌کند
+     * و با خواندن تنظیمات، نمایش یا عدم نمایش آنها را کنترل می‌کند.
      */
     public function prepare_parent_attributes_stable($pid, $scraped_data) {
         $this->plugin->debug_log("Preparing parent attributes using STABLE method for product #{$pid}.");
+
+        // --- START: Load all filtering and hiding rules ---
+        // 1. Get keys that should always be hidden
+        $always_hide_keys = array_filter(array_map('trim', explode("\n", get_option('wcps_always_hide_keys', ''))));
+        
+        // 2. Get keys from conditional rules
+        $conditional_rules = get_option('wcps_conditional_rules', []);
+        $conditional_keys = [];
+        if (!empty($conditional_rules)) {
+            foreach ($conditional_rules as $rule) {
+                if (!empty($rule['key'])) {
+                    $conditional_keys[] = $rule['key'];
+                }
+            }
+        }
+        // 3. Combine them into a single list of keys to manage visibility for
+        $managed_keys = array_unique(array_merge($always_hide_keys, $conditional_keys));
+        $this->plugin->debug_log("Keys managed by visibility rules:", $managed_keys);
+        // --- END: Load rules ---
+
 
         $attribute_keys_cleaned = [];
         foreach ($scraped_data as $row) {
@@ -234,34 +255,38 @@ class WCPS_Core {
             }
             $all_terms_for_this_attr = array_unique($all_terms_for_this_attr);
 
-            $term_slugs_to_set = [];
+            $term_ids_to_set = []; // Using term IDs is more robust
             foreach ($all_terms_for_this_attr as $term_name) {
                 $term = get_term_by('name', $term_name, $taxonomy_name);
                 if (!$term) {
                     $term_result = wp_insert_term($term_name, $taxonomy_name);
                     if (!is_wp_error($term_result)) {
-                        $term_slugs_to_set[] = $term_result['slug'];
+                        $term_ids_to_set[] = $term_result['term_id'];
                     }
                 } else {
-                    $term_slugs_to_set[] = $term->slug;
+                    $term_ids_to_set[] = $term->term_id;
                 }
             }
 
-            wp_set_object_terms($pid, $term_slugs_to_set, $taxonomy_name, false);
-            $this->plugin->debug_log("Set terms for {$taxonomy_name} on product #{$pid}:", $term_slugs_to_set);
+            wp_set_object_terms($pid, $term_ids_to_set, $taxonomy_name, false);
+            $this->plugin->debug_log("Set terms for {$taxonomy_name} on product #{$pid}:", $term_ids_to_set);
 
-            // روش پایدار و قدیمی برای ساخت آرایه
+            // +++ THE CORE FIX IS HERE +++
+            // Check if the current attribute should be visible on the product page
+            $is_visible_for_user = !in_array($taxonomy_name, $managed_keys);
+
+            // Build the attribute data array
             $product_attributes[$taxonomy_name] = [
                 'name'         => $taxonomy_name,
-                'value'        => '', // برای ویژگی‌های مبتنی بر taxonomy باید خالی باشد
+                'value'        => '', // For taxonomy-based attributes, this must be empty
                 'position'     => $index,
-                'is_visible'   => 1,
-                'is_variation' => 1,
+                'is_visible'   => $is_visible_for_user ? 1 : 0, // Set visibility based on our rules
+                'is_variation' => 1, // It always needs to be a variation attribute
                 'is_taxonomy'  => 1,
             ];
         }
 
-        // ذخیره مستقیم در دیتابیس برای اطمینان از عملکرد صحیح
+        // Save the attribute settings directly to the post meta
         update_post_meta($pid, '_product_attributes', $product_attributes);
         $this->plugin->debug_log("Updated _product_attributes meta directly for product #{$pid}.", $product_attributes);
         wc_delete_product_transients($pid);

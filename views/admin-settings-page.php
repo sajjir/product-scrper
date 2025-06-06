@@ -8,13 +8,13 @@ if (!defined('ABSPATH')) exit;
         
         <h2 style="margin-top: 20px;"><?php esc_html_e('بخش ۱: پنهان‌سازی و ادغام متغیرها', 'wc-price-scraper'); ?></h2>
         <p class="description">
-            <?php esc_html_e('اتروبیوت‌هایی که در اینجا وارد می‌کنید، همیشه از دید کاربر پنهان می‌شوند. اگر دو متغیر پس از پنهان شدن این اتربیوت‌ها کاملاً یکسان شوند، فقط یکی از آن‌ها باقی می‌ماند. (این بخش برای اتربیوت‌هایی مثل گارانتی، کد داخلی و ... مناسب است)', 'wc-price-scraper'); ?>
+            <?php esc_html_e('اتروبیوت‌هایی که در اینجا وارد می‌کنید، همیشه از دید کاربر پنهان می‌شوند. اگر دو متغیر پس از پنهان شدن این اتربیوت‌ها کاملاً یکسان شوند، فقط یکی از آن‌ها باقی می‌ماند. (برای اتربیوت‌هایی مثل گارانتی، کد داخلی و ...)', 'wc-price-scraper'); ?>
         </p>
         <table class="form-table">
             <tr valign="top">
                 <th scope="row"><label for="wcps_always_hide_keys"><?php esc_html_e('کلید اتربیوت‌ها برای پنهان‌سازی', 'wc-price-scraper'); ?></label></th>
                 <td>
-                    <textarea id="wcps_always_hide_keys" name="wcps_always_hide_keys" rows="5" class="large-text code" placeholder="<?php esc_attr_e('هر کلید را در یک خط وارد کنید. مثال: pa_guarantee', 'wc-price-scraper'); ?>"><?php echo esc_textarea(get_option('wcps_always_hide_keys', '')); ?></textarea>
+                    <textarea id="wcps_always_hide_keys" name="wcps_always_hide_keys" rows="4" class="large-text code" placeholder="<?php esc_attr_e('هر کلید را در یک خط وارد کنید. مثال: pa_guarantee', 'wc-price-scraper'); ?>"><?php echo esc_textarea(get_option('wcps_always_hide_keys', '')); ?></textarea>
                 </td>
             </tr>
         </table>
@@ -22,16 +22,13 @@ if (!defined('ABSPATH')) exit;
         <h2 style="margin-top: 30px;"><?php esc_html_e('بخش ۲: قوانین حذف شرطی متغیرها', 'wc-price-scraper'); ?></h2>
         <p class="description">
             <?php esc_html_e('قوانینی برای حذف متغیرها بر اساس مقدار یک اتربیوت خاص تعریف کنید.', 'wc-price-scraper'); ?><br>
-            <strong style="color: #d63638;"><?php esc_html_e('نکته مهم:', 'wc-price-scraper'); ?></strong> <?php esc_html_e('اگر قانونی باعث شود هیچ متغیری برای نمایش باقی نماند، آن قانون اجرا نشده و صرفاً اتربیوت مربوطه از همه متغیرها پنهان خواهد شد.', 'wc-price-scraper'); ?>
+            <strong style="color: #d63638;"><?php esc_html_e('نکته مهم:', 'wc-price-scraper'); ?></strong> <?php esc_html_e('اگر قانونی باعث شود هیچ متغیری باقی نماند، اجرا نشده و صرفاً اتربیوت مربوطه از صفحه محصول پنهان خواهد شد.', 'wc-price-scraper'); ?>
         </p>
         <table class="form-table" id="wcps-conditional-rules-table">
             <tbody id="wcps-rules-container">
                 <?php
                 $conditional_rules = get_option('wcps_conditional_rules', []);
-                if (empty($conditional_rules)) {
-                    // Add a default empty row if no rules exist
-                    $conditional_rules[] = ['key' => '', 'value' => ''];
-                }
+                if (empty($conditional_rules)) { $conditional_rules[] = ['key' => '', 'value' => '']; }
                 foreach ($conditional_rules as $i => $rule) :
                 ?>
                 <tr valign="top" class="wcps-rule-row">
@@ -44,31 +41,31 @@ if (!defined('ABSPATH')) exit;
                         <input type="text" name="wcps_conditional_rules[<?php echo $i; ?>][value]" value="<?php echo esc_attr($rule['value']); ?>" placeholder="مثال: فروشگاه مشهد" class="regular-text" />
                     </td>
                     <td>
-                        <button type="button" class="button button-danger wcps-remove-rule"><?php esc_html_e('حذف', 'wc-price-scraper'); ?></button>
+                        <button type="button" class="button button-link-delete wcps-remove-rule" style="color: #d63638;"><?php esc_html_e('حذف', 'wc-price-scraper'); ?></button>
                     </td>
                 </tr>
                 <?php endforeach; ?>
             </tbody>
             <tfoot>
                 <tr>
-                    <td colspan="3">
+                    <td colspan="3" style="padding-top: 10px;">
                         <button type="button" class="button" id="wcps-add-rule"><?php esc_html_e('+ افزودن قانون جدید', 'wc-price-scraper'); ?></button>
                     </td>
                 </tr>
             </tfoot>
         </table>
 
-        <h2 style="margin-top: 30px;"><?php esc_html_e('تنظیمات عمومی کرون‌جاب', 'wc-price-scraper'); ?></h2>
+        <h2 style="margin-top: 30px;"><?php esc_html_e('تنظیمات عمومی و کرون‌جاب', 'wc-price-scraper'); ?></h2>
         <table class="form-table">
             <tr valign="top">
                 <th scope="row"><label for="wc_price_scraper_cron_interval"><?php esc_html_e('فاصله به‌روزرسانی (ساعت)', 'wc-price-scraper'); ?></label></th>
                 <td>
                     <input type="number" id="wc_price_scraper_cron_interval" name="wc_price_scraper_cron_interval" value="<?php echo esc_attr(get_option('wc_price_scraper_cron_interval', 12)); ?>" min="1" class="small-text">
-                    <p class="description"><?php esc_html_e('هر چند ساعت یکبار قیمت تمام محصولات به صورت خودکار به‌روز شود. (مثال: برای اجرا هر 12 ساعت، عدد 12 را وارد کنید)', 'wc-price-scraper'); ?></p>
+                    <p class="description"><?php esc_html_e('هر چند ساعت یکبار قیمت تمام محصولات به صورت خودکار به‌روز شود.', 'wc-price-scraper'); ?></p>
                 </td>
             </tr>
             <tr valign="top">
-                <th scope="row"><?php esc_html_e('تا اجرای بعدی کرون جاب', 'wc-price-scraper'); ?></th>
+                <th scope="row"><?php esc_html_e('عملیات کرون جاب', 'wc-price-scraper'); ?></th>
                 <td>
                     <?php
                     $next_cron = wp_next_scheduled('wc_price_scraper_cron_event');
@@ -79,7 +76,12 @@ if (!defined('ABSPATH')) exit;
                     ?>
                     <span id="cron_countdown" data-seconds-left="<?php echo esc_attr($diff); ?>">--:--</span>
                     <span style="margin-right:10px; color:#0073aa;"><b><?php esc_html_e('زمان اجرای بعدی:', 'wc-price-scraper'); ?></b> <?php echo esc_html($next_cron_str); ?></span>
-                    <p class="description"><?php esc_html_e('زمان باقیمانده تا اجرای بعدی به‌روزرسانی خودکار.', 'wc-price-scraper'); ?></p>
+                    
+                    <p style="margin-top: 15px;">
+                        <button type="button" class="button button-primary" id="force_reschedule_button">شروع فوری کران جاب (در پس‌زمینه)</button>
+                        <span id="reschedule_status" style="margin-right: 10px; font-weight: bold;"></span>
+                        <span class="spinner" style="float: none; margin-top: 4px;"></span>
+                    </p>
                 </td>
             </tr>
             <tr valign="top">
