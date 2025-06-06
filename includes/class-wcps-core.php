@@ -205,25 +205,18 @@ class WCPS_Core {
     public function prepare_parent_attributes_stable($pid, $scraped_data) {
         $this->plugin->debug_log("Preparing parent attributes using STABLE method for product #{$pid}.");
 
-        // --- START: Load all filtering and hiding rules ---
-        // 1. Get keys that should always be hidden
-        $always_hide_keys = array_filter(array_map('trim', explode("\n", get_option('wcps_always_hide_keys', ''))));
-        
-        // 2. Get keys from conditional rules
-        $conditional_rules = get_option('wcps_conditional_rules', []);
-        $conditional_keys = [];
-        if (!empty($conditional_rules)) {
-            foreach ($conditional_rules as $rule) {
-                if (!empty($rule['key'])) {
-                    $conditional_keys[] = $rule['key'];
-                }
-            }
+        $product = wc_get_product($pid);
+        if (!$product) {
+            $this->plugin->debug_log("Could not get product object for #{$pid} in prepare_parent_attributes_stable.");
+            return;
         }
-        // 3. Combine them into a single list of keys to manage visibility for
+
+        // --- Load all filtering and hiding rules ---
+        $always_hide_keys = array_filter(array_map('trim', explode("\n", get_option('wcps_always_hide_keys', ''))));
+        $conditional_rules = get_option('wcps_conditional_rules', []);
+        $conditional_keys = !empty($conditional_rules) ? array_column($conditional_rules, 'key') : [];
         $managed_keys = array_unique(array_merge($always_hide_keys, $conditional_keys));
         $this->plugin->debug_log("Keys managed by visibility rules:", $managed_keys);
-        // --- END: Load rules ---
-
 
         $attribute_keys_cleaned = [];
         foreach ($scraped_data as $row) {
@@ -234,62 +227,61 @@ class WCPS_Core {
             }
         }
         sort($attribute_keys_cleaned);
+        
+        $attributes_array_for_product = [];
 
-        $product_attributes = [];
         foreach ($attribute_keys_cleaned as $index => $attr_key_clean) {
             $taxonomy_name = 'pa_' . $attr_key_clean;
+            
+            // Ensure the global attribute exists
             if (!taxonomy_exists($taxonomy_name)) {
-                $attribute_label = ucfirst(str_replace(['_', '-'], ' ', $attr_key_clean));
-                wc_create_attribute(['name' => $attribute_label, 'slug' => $attr_key_clean]);
+                wc_create_attribute(['name' => ucfirst(str_replace('-', ' ', $attr_key_clean)), 'slug' => $attr_key_clean]);
                 $this->plugin->debug_log("Created global attribute: {$taxonomy_name}");
             }
 
+            // Create a new WC_Product_Attribute object
+            $attribute = new WC_Product_Attribute();
+            $attribute->set_id(wc_attribute_taxonomy_id_by_name($taxonomy_name));
+            $attribute->set_name($taxonomy_name);
+
+            // Get all terms for this attribute from the scraped data
             $all_terms_for_this_attr = [];
             foreach ($scraped_data as $item) {
                 foreach ($item as $key => $value) {
-                    $current_clean_key = sanitize_title(urldecode(str_replace(['attribute_pa_', 'pa_'], '', $key)));
-                    if ($current_clean_key === $attr_key_clean && !empty($value)) {
+                    if (sanitize_title(urldecode(str_replace(['attribute_pa_', 'pa_'], '', $key))) === $attr_key_clean && !empty($value)) {
                         $all_terms_for_this_attr[] = is_array($value) ? $value['label'] : $value;
                     }
                 }
             }
             $all_terms_for_this_attr = array_unique($all_terms_for_this_attr);
 
-            $term_ids_to_set = []; // Using term IDs is more robust
+            // Find or create terms and get their IDs
+            $term_ids = [];
             foreach ($all_terms_for_this_attr as $term_name) {
                 $term = get_term_by('name', $term_name, $taxonomy_name);
                 if (!$term) {
                     $term_result = wp_insert_term($term_name, $taxonomy_name);
-                    if (!is_wp_error($term_result)) {
-                        $term_ids_to_set[] = $term_result['term_id'];
-                    }
+                    if (!is_wp_error($term_result)) $term_ids[] = $term_result['term_id'];
                 } else {
-                    $term_ids_to_set[] = $term->term_id;
+                    $term_ids[] = $term->term_id;
                 }
             }
-
-            wp_set_object_terms($pid, $term_ids_to_set, $taxonomy_name, false);
-            $this->plugin->debug_log("Set terms for {$taxonomy_name} on product #{$pid}:", $term_ids_to_set);
-
-            // +++ THE CORE FIX IS HERE +++
-            // Check if the current attribute should be visible on the product page
+            $attribute->set_options($term_ids);
+            
+            // +++ THE CORE FIX IS HERE (AGAIN, BUT MORE ROBUST) +++
             $is_visible_for_user = !in_array($taxonomy_name, $managed_keys);
-
-            // Build the attribute data array
-            $product_attributes[$taxonomy_name] = [
-                'name'         => $taxonomy_name,
-                'value'        => '', // For taxonomy-based attributes, this must be empty
-                'position'     => $index,
-                'is_visible'   => $is_visible_for_user ? 1 : 0, // Set visibility based on our rules
-                'is_variation' => 1, // It always needs to be a variation attribute
-                'is_taxonomy'  => 1,
-            ];
+            $attribute->set_visible($is_visible_for_user);
+            $attribute->set_variation(true);
+            
+            $attributes_array_for_product[] = $attribute;
         }
 
-        // Save the attribute settings directly to the post meta
-        update_post_meta($pid, '_product_attributes', $product_attributes);
-        $this->plugin->debug_log("Updated _product_attributes meta directly for product #{$pid}.", $product_attributes);
-        wc_delete_product_transients($pid);
+        // Set attributes using the official WooCommerce method and SAVE
+        $product->set_attributes($attributes_array_for_product);
+        $product->save();
+        
+        $this->plugin->debug_log("Product attributes set via product object and saved for #{$pid}. This should clear caches.");
+        wc_delete_product_transients($pid); // An extra measure
     }
 
     public function set_all_product_variations_outof_stock($pid) {
