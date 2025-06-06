@@ -45,12 +45,15 @@ class WCPS_Admin {
     public function register_settings() {
         $option_group = 'wc_price_scraper_group';
 
-        // General Settings
+        // General & Cron Settings
         register_setting($option_group, 'wc_price_scraper_cron_interval', ['type' => 'integer', 'sanitize_callback' => 'absint', 'default' => 12]);
-        register_setting($option_group, 'wc_price_scraper_ignore_guarantee', ['type' => 'string', 'sanitize_callback' => 'sanitize_textarea_field', 'default' => '']);
         register_setting($option_group, 'wc_price_scraper_priority_cats', ['type' => 'array', 'sanitize_callback' => [$this, 'sanitize_category_ids'], 'default' => []]);
 
-        // N8N Integration Settings
+        // NEW: Smart Filtering Settings
+        register_setting($option_group, 'wcps_always_hide_keys', ['type' => 'string', 'sanitize_callback' => 'sanitize_textarea_field', 'default' => '']);
+        register_setting($option_group, 'wcps_conditional_rules', ['type' => 'array', 'sanitize_callback' => [$this, 'sanitize_conditional_rules'], 'default' => []]);
+
+        // N8N Integration Settings (if they exist)
         register_setting($option_group, 'wc_price_scraper_n8n_enable', ['type' => 'string', 'sanitize_callback' => [$this, 'sanitize_checkbox_yes_no'], 'default' => 'no']);
         register_setting($option_group, 'wc_price_scraper_n8n_webhook_url', ['type' => 'string', 'sanitize_callback' => 'esc_url_raw', 'default' => '']);
         register_setting($option_group, 'wc_price_scraper_n8n_model_slug', ['type' => 'string', 'sanitize_callback' => 'sanitize_text_field', 'default' => '']);
@@ -233,5 +236,25 @@ class WCPS_Admin {
             $variation->set_sku((string) $variation_id);
             $variation->save();
         }
+    }
+
+    /**
+     * Sanitizes the conditional rules repeater field.
+     * @param array $input The input array from the settings page.
+     * @return array The sanitized array of rules.
+     */
+    public function sanitize_conditional_rules($input) {
+        $sanitized_rules = [];
+        if (is_array($input)) {
+            foreach ($input as $rule) {
+                if (is_array($rule) && !empty($rule['key']) && !empty($rule['value'])) {
+                    $sanitized_rules[] = [
+                        'key'   => sanitize_text_field($rule['key']),
+                        'value' => sanitize_text_field($rule['value']),
+                    ];
+                }
+            }
+        }
+        return $sanitized_rules;
     }
 }

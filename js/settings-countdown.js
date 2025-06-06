@@ -108,4 +108,39 @@ jQuery(document).ready(function($) {
             location.reload();
         }, 2000);
     });
+
+    // --- NEW: Conditional Rules Repeater Logic ---
+    function wcps_reindex_rules() {
+        $('#wcps-rules-container .wcps-rule-row').each(function(index, row) {
+            $(row).find('input').each(function() {
+                var name = $(this).attr('name');
+                if (name) {
+                    var new_name = name.replace(/\[\d+\]/, '[' + index + ']');
+                    $(this).attr('name', new_name);
+                }
+            });
+        });
+    }
+
+    // Add Rule Button
+    $('#wcps-add-rule').on('click', function() {
+        var container = $('#wcps-rules-container');
+        var new_row = container.find('.wcps-rule-row:first').clone();
+        new_row.find('input').val(''); // Clear values in new row
+        container.append(new_row);
+        wcps_reindex_rules();
+    });
+
+    // Remove Rule Button (uses event delegation for dynamically added rows)
+    $('#wcps-rules-container').on('click', '.wcps-remove-rule', function(e) {
+        e.preventDefault();
+        var row = $(this).closest('.wcps-rule-row');
+        // Do not remove the last row, just clear it
+        if ($('#wcps-rules-container .wcps-rule-row').length > 1) {
+            row.remove();
+        } else {
+            row.find('input').val('');
+        }
+        wcps_reindex_rules();
+    });
 });

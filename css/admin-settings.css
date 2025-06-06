@@ -61,3 +61,24 @@
 .form-table th, .form-table td {
     vertical-align: top;
 }
+
+/* --- NEW: Styles for Conditional Rules Repeater --- */
+#wcps-conditional-rules-table td {
+    padding: 10px;
+}
+
+#wcps-conditional-rules-table .wcps-rule-row input {
+    margin: 0 15px 0 5px;
+}
+
+.button-danger {
+    background: #d63638 !important;
+    border-color: #b62b2d !important;
+    color: #fff !important;
+    text-shadow: none !important;
+}
+
+.button-danger:hover {
+    background: #b62b2d !important;
+    border-color: #9f2628 !important;
+}

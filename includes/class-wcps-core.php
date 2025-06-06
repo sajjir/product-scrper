@@ -26,34 +26,87 @@ class WCPS_Core {
             return new WP_Error('no_data', __('داده معتبری از API اسکرپینگ دریافت نشد.', 'wc-price-scraper'));
         }
 
-        $data = array_values(array_map('unserialize', array_unique(array_map('serialize', $data))));
-        if (empty($data)) {
-            $this->set_all_product_variations_outof_stock($pid);
-            update_post_meta($pid, '_scraped_data', []);
-            return new WP_Error('no_unique_data', __('داده منحصر به فردی پس از پردازش یافت نشد.', 'wc-price-scraper'));
+        // ===================================================================
+        // +++ START: NEW ADVANCED FILTERING LOGIC +++
+        // ===================================================================
+
+        // --- Step 1: Apply Conditional Removal Rules (with fallback) ---
+        $conditional_rules = get_option('wcps_conditional_rules', []);
+        $data_after_conditional_filter = $data;
+
+        if (!empty($conditional_rules)) {
+            $this->plugin->debug_log("Applying conditional rules for product #{$pid}", $conditional_rules);
+            $temp_data = $data; // Work on a temporary copy
+
+            foreach ($conditional_rules as $rule) {
+                $key_to_check = $rule['key'];
+                $value_to_ignore = $rule['value'];
+
+                // Create a list of items that DON'T match the ignore rule
+                $filtered_tentatively = array_values(array_filter($temp_data, function ($item) use ($key_to_check, $value_to_ignore) {
+                    return !isset($item[$key_to_check]) || $item[$key_to_check] != $value_to_ignore;
+                }));
+
+                // THE CORE LOGIC: If filtering leaves at least one item, apply it. Otherwise, ignore the rule.
+                if (!empty($filtered_tentatively)) {
+                    $temp_data = $filtered_tentatively; // The filter was successful, update the list
+                    $this->plugin->debug_log("Rule ({$key_to_check} = {$value_to_ignore}) applied. Items left: " . count($temp_data));
+                } else {
+                    // The filter would remove everything, so we ignore this rule and log it.
+                    $this->plugin->debug_log("Rule ({$key_to_check} = {$value_to_ignore}) ignored because it would remove all variations.");
+                }
+            }
+            $data_after_conditional_filter = $temp_data;
         }
+
+        // --- Step 2: Apply "Always Hide & Deduplicate" Logic ---
+        $always_hide_keys = array_filter(array_map('trim', explode("\n", get_option('wcps_always_hide_keys', ''))));
+        $final_data = [];
+
+        if (!empty($always_hide_keys)) {
+            $this->plugin->debug_log("Applying always-hide/deduplicate logic for product #{$pid}", $always_hide_keys);
+            $seen_fingerprints = [];
+            foreach ($data_after_conditional_filter as $item) {
+                $core_attributes = $item;
+                foreach ($always_hide_keys as $key_to_hide) {
+                    unset($core_attributes[$key_to_hide]);
+                }
+                
+                // Create a unique fingerprint based on remaining attributes
+                $fingerprint = md5(json_encode($core_attributes));
+
+                if (!in_array($fingerprint, $seen_fingerprints)) {
+                    $seen_fingerprints[] = $fingerprint;
+                    $final_data[] = $item; // Add the ORIGINAL item to keep all its data for now
+                }
+            }
+        } else {
+            // If no hide/deduplicate rules, just use the data from the conditional filter
+            $final_data = $data_after_conditional_filter;
+        }
+
+        // Ensure we remove duplicates even if no rules are set
+        $final_data = array_values(array_map('unserialize', array_unique(array_map('serialize', $final_data))));
         
-        $ignored_guarantees = array_filter(array_map('trim', explode("\n", get_option('wc_price_scraper_ignore_guarantee', ''))));
-        if (!empty($ignored_guarantees)) {
-            $data = array_values(array_filter($data, function ($item) use ($ignored_guarantees) {
-                return isset($item['guarantee']) && !in_array($item['guarantee'], $ignored_guarantees, true);
-            }));
-        }
+        // ===================================================================
+        // +++ END: NEW ADVANCED FILTERING LOGIC +++
+        // ===================================================================
 
-        if (empty($data)) {
+        if (empty($final_data)) {
             $this->set_all_product_variations_outof_stock($pid);
             update_post_meta($pid, '_scraped_data', []);
-            return new WP_Error('filtered_out', __('همه داده‌ها توسط تنظیمات گارانتی فیلتر شدند.', 'wc-price-scraper'));
+            return new WP_Error('filtered_out', __('همه داده‌ها توسط قوانین فیلترینگ حذف شدند.', 'wc-price-scraper'));
         }
 
-        update_post_meta($pid, '_scraped_data', $data);
+        // Use the processed data from now on
+        update_post_meta($pid, '_scraped_data', $final_data);
 
         $auto_sync_enabled = get_post_meta($pid, '_auto_sync_variations', true) === 'yes';
         if ($is_ajax || $auto_sync_enabled) {
-            $this->sync_product_variations($pid, $data);
+            $this->sync_product_variations($pid, $final_data);
         }
 
-        return $data;
+        return $final_data;
     }
 
     public function sync_product_variations($pid, $scraped_data) {
