@@ -149,7 +149,7 @@ function wc_price_scraper() {
 function wcps_load_textdomain() {
     load_plugin_textdomain('wc-price-scraper', false, dirname(plugin_basename(WC_PRICE_SCRAPER_PATH . 'woocommerce-price-update.php')) . '/languages/');
 }
-add_action('init', 'wcps_load_textdomain');
+add_action('init', 'wcps_load_textdomain', 5);
 
 // Initialize the plugin on plugins_loaded hook
 add_action('plugins_loaded', 'wc_price_scraper', 10);
