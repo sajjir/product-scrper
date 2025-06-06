@@ -138,11 +138,24 @@ final class WC_Price_Scraper {
     }
 }
 
-// Initialize the plugin
+/**
+ * Main instance of WC_Price_Scraper.
+ *
+ * Returns the main instance of WC_Price_Scraper to prevent the need to use globals.
+ *
+ * @return WC_Price_Scraper
+ */
 function wc_price_scraper() {
-    // Load plugin textdomain
-    load_plugin_textdomain('wc-price-scraper', false, dirname(plugin_basename(__FILE__)) . '/languages/');
-    // Return instance
     return WC_Price_Scraper::instance();
 }
-add_action('plugins_loaded', 'wc_price_scraper', 10); // اولویت ۱۰ برای اطمینان
+
+/**
+ * Load the plugin's text domain for translation.
+ */
+function wcps_load_textdomain() {
+    load_plugin_textdomain('wc-price-scraper', false, dirname(plugin_basename(WC_PRICE_SCRAPER_PATH . 'woocommerce-price-update.php')) . '/languages/');
+}
+add_action('init', 'wcps_load_textdomain');
+
+// Initialize the plugin on plugins_loaded hook
+add_action('plugins_loaded', 'wc_price_scraper', 10);
